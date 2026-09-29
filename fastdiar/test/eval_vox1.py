@@ -10,11 +10,12 @@ Usage:
 Models (``-m``):
 
 * ``b6`` -- redimnet2-b6-vb2+vox2_v0-lm, the released whole-utterance model
-  (weights from torch hub): one embedding per utterance.
+  (weights from torch hub): one embedding per utterance, which it takes whole.
 * ``small`` / ``medium`` / ``large``, or a local ``.pt`` checkpoint -- the
-  streaming encoder, fed in ``--shift-sec`` blocks (320 ms by default): one embedding per 80 ms frame. The
-  first ``--skip-frames`` frames (12, i.e. 960 ms, by default) of every
-  utterance are left out of scoring.
+  streaming encoder, fed in ``--shift-sec`` blocks (by default 60 s on a GPU and
+  320 ms on the CPU, the fastest on each; the embeddings do not depend on it):
+  one embedding per 80 ms frame. The first ``--skip-frames`` frames (12, i.e.
+  960 ms, by default) of every utterance are left out of scoring.
 
 A trial is scored by the cosine similarity of its two utterances, averaged over
 all frame pairs for a streaming side. ``--enroll-model`` embeds the enrollment
@@ -25,7 +26,9 @@ The protocol's paths are relative to ``--audio-dir``. With ``--cache`` the
 embeddings are saved as float16 ``.npy`` files, next to the audio as
 ``<file-name>_<model-name>.npy`` or under ``--output-dir`` (mirroring the
 ``--audio-dir`` layout), and files that already have one are not embedded again.
-Files are embedded in parallel, one process per CPU by default (``--workers``).
+The models run on a GPU when one is available (``--device``), in bfloat16, in a
+single process; on the CPU, files are embedded in parallel, one process per CPU by
+default (``--workers``).
 """
 
 import argparse
@@ -38,7 +41,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from fastdiar.cli import load_audio, load_model, streaming_model
+from fastdiar.cli import add_device_args, load_audio, load_model, resolve_device, streaming_model
 from fastdiar.model.redimnet2 import load_hub_model
 from fastdiar.run_encoder import FileEncoder
 
@@ -82,18 +85,21 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="cache directory (default: next to audio)",
     )
+    add_device_args(parser)
     parser.add_argument(
         "-j",
         "--workers",
         type=int,
-        default=os.cpu_count(),
-        help="parallel embedding processes (default: one per CPU); 1 runs in-process",
+        default=None,
+        help="parallel embedding processes on the CPU (default: one per CPU); 1 runs "
+        "in-process, as always on a GPU",
     )
     parser.add_argument(
         "--shift-sec",
         type=float,
-        default=0.32,
-        help="audio block fed to the streaming encoder, in seconds (default: 0.32)",
+        default=None,
+        help="audio block fed to the streaming encoder, in seconds; it does not change the "
+        "embeddings (default: 60 on a GPU, 0.32 on the CPU, the fastest on each)",
     )
     parser.add_argument(
         "--skip-frames",
@@ -115,21 +121,29 @@ def model_name(model: str) -> str:
 
 
 class UtteranceEncoder:
-    """One L2-normalized float16 embedding per utterance, from the released b6 model."""
+    """One L2-normalized float16 embedding per utterance, from the released b6 model.
 
-    def __init__(self) -> None:
-        self.model = load_hub_model(HUB_URL).eval()
+    The whole utterance goes through the model in one pass; on a GPU under
+    bfloat16 autocast (the log-mel front-end stays in fp32).
+    """
+
+    def __init__(self, device: str = "cpu") -> None:
+        self.device = torch.device(device)
+        self.model = load_hub_model(HUB_URL).to(self.device).eval()
 
     @torch.inference_mode()
     def __call__(self, wav: torch.Tensor) -> np.ndarray:
-        emb = F.normalize(self.model(wav[None]), dim=-1)[0]
-        return emb.numpy().astype(np.float16)
+        on_gpu = self.device.type == "cuda"
+        with torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=on_gpu):
+            emb = self.model(wav[None].to(self.device))
+        emb = F.normalize(emb.float(), dim=-1)[0]
+        return emb.cpu().numpy().astype(np.float16)
 
 
 def build_encoder(model: str, args: argparse.Namespace):
     if model == "b6":
-        return UtteranceEncoder()
-    return FileEncoder(load_model(args, model), stream=True, shift_sec=args.shift_sec)
+        return UtteranceEncoder(resolve_device(args))
+    return FileEncoder(load_model(args, model), shift_sec=args.shift_sec)
 
 
 def read_protocol(path: Path) -> tuple[list[int], list[str], list[str]]:
@@ -239,9 +253,14 @@ def main() -> None:
     args = parse_args()
     if args.output_dir is not None and not args.cache:
         raise SystemExit("--output-dir is the cache directory, so it requires --cache")
+    on_gpu = resolve_device(args).startswith("cuda")
+    if on_gpu and args.workers not in (None, 1):
+        raise SystemExit("on a GPU the files are embedded in a single process: drop --workers")
+    if args.workers is None:
+        args.workers = 1 if on_gpu else os.cpu_count()
     if args.workers < 1:
         raise SystemExit(f"--workers must be at least 1, got {args.workers}")
-    if args.shift_sec <= 0:
+    if args.shift_sec is not None and args.shift_sec <= 0:
         raise SystemExit(f"--shift-sec must be positive, got {args.shift_sec}")
     if args.skip_frames < 0:
         raise SystemExit(f"--skip-frames must be non-negative, got {args.skip_frames}")

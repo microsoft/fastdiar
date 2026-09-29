@@ -11,10 +11,11 @@ from fastdiar.diarizer import SAMPLE_RATE
 from fastdiar.encoder import CHECKPOINTS, StreamingReDimNet2, load_streaming_model
 
 MODEL_SIZES = tuple(CHECKPOINTS)
+DTYPES = {"cpu": torch.float32, "cuda": torch.bfloat16}
 
 
 def build_parser(description: str, output_help: str) -> argparse.ArgumentParser:
-    """Arguments common to every script: input, output and model."""
+    """Arguments common to every script: input, output, model and device."""
     parser = argparse.ArgumentParser(
         description=description, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -31,6 +32,7 @@ def build_parser(description: str, output_help: str) -> argparse.ArgumentParser:
         "--ext", default=".wav", help="audio extension searched for in a directory input"
     )
     add_model_args(parser)
+    add_device_args(parser)
     return parser
 
 
@@ -54,11 +56,31 @@ def add_model_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_device_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--device",
+        default="auto",
+        help="device of the encoder: auto (a GPU when available), cpu, cuda, cuda:1, ...; "
+        "the VAD and the clustering always run on the CPU (default: auto)",
+    )
+
+
+def resolve_device(args: argparse.Namespace) -> str:
+    """``args.device`` with ``auto`` resolved (the CPU without :func:`add_device_args`)."""
+    device = getattr(args, "device", "cpu")
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    return device
+
+
 def load_model(args: argparse.Namespace, model: str | None = None) -> StreamingReDimNet2:
     """Load the streaming ``model`` (default: ``args.model``)."""
+
     model = model or args.model
+    device = resolve_device(args)
+    dtype = DTYPES.get(device, torch.float32)
     try:
-        return load_streaming_model(model)
+        return load_streaming_model(model, device=device, dtype=dtype)
     except URLError as e:
         raise SystemExit(
             f"could not download the {model} checkpoint: {e}\n"

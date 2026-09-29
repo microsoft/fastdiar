@@ -26,7 +26,7 @@ import numpy as np
 import torch
 
 from fastdiar.clustering import OnlineClustering
-from fastdiar.encoder import StreamingEncoder, StreamingReDimNet2
+from fastdiar.encoder import StreamingEncoder, StreamingReDimNet2, default_shift_sec
 from fastdiar.vad import StreamingVAD
 
 SAMPLE_RATE = 16000
@@ -38,7 +38,11 @@ class StreamingDiarizer:
     Args:
         model: A streaming model (see :func:`fastdiar.encoder.load_streaming_model`).
         shift_sec: Streaming step: the encoder block and, unless overridden in
-            ``vad_kwargs``, the VAD update grid (latency/throughput knob).
+            ``vad_kwargs``, the VAD update grid (latency/throughput knob). It
+            sets how often results are produced, never their value. Default:
+            the fastest for the model's device (:func:`default_shift_sec`),
+            60 s on a GPU and 0.32 s on the CPU; pass 0.32 for a live stream
+            on a GPU.
         delay_frames: ``OnlineClustering`` confidence look-back in frames.
         clust_th: Cluster assignment similarity threshold.
         sub_clust_th: Speech-cluster merging similarity threshold.
@@ -57,6 +61,7 @@ class StreamingDiarizer:
             label is finalized, in frame order (``speaker`` is ``None`` for
             silence), e.g. to display the labels live.
 
+    The encoder runs on the model's device; the VAD and the clustering on the CPU.
     Speakers are numbered from 1 in the order they first speak in the output;
     clusters that never emit speech (e.g. merged away first) take no number.
     """
@@ -65,7 +70,7 @@ class StreamingDiarizer:
         self,
         model: StreamingReDimNet2,
         *,
-        shift_sec: float = 0.32,
+        shift_sec: float | None = None,
         delay_frames: int = 10,
         clust_th: float = 0.4,
         sub_clust_th: float = 0.8,
@@ -78,6 +83,8 @@ class StreamingDiarizer:
     ) -> None:
         self.post_process = post_process
         self.on_frame = on_frame
+        if shift_sec is None:
+            shift_sec = default_shift_sec(model)
         vad_kwargs = {"shift_ms": round(shift_sec * 1000), **(vad_kwargs or {})}
         self.vad = StreamingVAD(sr=SAMPLE_RATE, **vad_kwargs)
         # The encoder block is a whole number of backbone frames.

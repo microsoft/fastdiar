@@ -24,7 +24,9 @@ In both regimes each frame is scored exactly once and the model's recurrent
 state is never reset mid-stream, so the acoustic context is the whole past
 stream and the emitted intervals are identical; ``shift_ms`` only controls
 *when* results become available (the online update granularity), not what they
-are.
+are. The frames completed by an update are scored as one batch
+(:class:`_BatchedSilero`), so a long update (e.g. the diarizer's 60 s step on a
+GPU) costs far less than as many single-frame calls.
 """
 
 import torch
@@ -32,6 +34,44 @@ from silero_vad import load_silero_vad
 
 # silero operates on exactly 512-sample frames at 16 kHz (256 at 8 kHz).
 _FRAME_BY_SR = {16000: 512, 8000: 256}
+
+
+class _BatchedSilero:
+    """silero-VAD over consecutive frames of one stream, many frames per call.
+
+    silero scores a frame, preceded by the last ``context`` samples of the
+    stream, with an STFT and a conv encoder, then one step of an LSTM whose
+    state carries the whole past. Only that step is sequential: the frames of a
+    call go through the STFT and the encoder as one batch and through the LSTM
+    (its weights, as a :class:`torch.nn.LSTM`) as one sequence. The
+    probabilities are silero's frame-by-frame ones, up to rounding.
+    """
+
+    def __init__(self, sr: int) -> None:
+        jit = load_silero_vad(onnx=False)
+        self.net = jit._model if sr == 16000 else jit._model_8k
+        self.context = self.net.context_size_samples
+        cell = self.net.decoder.rnn
+        self.lstm = torch.nn.LSTM(cell.weight_ih.shape[1], cell.weight_hh.shape[1])
+        with torch.no_grad():
+            for name in ("weight_ih", "weight_hh", "bias_ih", "bias_hh"):
+                getattr(self.lstm, f"{name}_l0").copy_(getattr(cell, name))
+        self.reset()
+
+    def reset(self) -> None:
+        self._state = None  # LSTM (h, c): zeros at the start of a stream
+        self._context = torch.zeros(self.context)
+
+    @torch.inference_mode()
+    def __call__(self, frames: torch.Tensor) -> torch.Tensor:
+        """Speech probability of each of the ``(n, frame)`` consecutive frames."""
+        n, size = frames.shape
+        stream = torch.cat([self._context, frames.reshape(-1)])
+        self._context = stream[-self.context :]
+        x = stream.unfold(0, self.context + size, size)  # (n, context + frame)
+        feats = self.net.encoder(self.net.stft(x)).squeeze(-1)  # (n, hidden)
+        h, self._state = self.lstm(feats.unsqueeze(1), self._state)
+        return self.net.decoder.decoder(h.squeeze(1).unsqueeze(-1)).reshape(n)
 
 
 class StreamingVAD:
@@ -51,7 +91,6 @@ class StreamingVAD:
             is kept (unlimited past context), so this only changes the update
             granularity, not the emitted intervals. ``None`` (default) scores
             frames as the incoming chunks complete them.
-        model: Optional preloaded silero model; loaded on demand otherwise.
     """
 
     def __init__(
@@ -64,7 +103,6 @@ class StreamingVAD:
         min_silence_ms: int = 250,
         speech_pad_ms: int = 30,
         shift_ms: int | None = None,
-        onnx: bool = True,
     ) -> None:
         if sr not in _FRAME_BY_SR:
             raise ValueError(f"silero VAD supports sr in {list(_FRAME_BY_SR)}, got {sr}")
@@ -79,13 +117,13 @@ class StreamingVAD:
         self.pad = int(round(speech_pad_ms * sr / 1000))
         self.shift = None if shift_ms is None else max(1, int(round(shift_ms * sr / 1000)))
 
-        self.model = load_silero_vad(onnx=onnx)
+        self.model = _BatchedSilero(sr)
         self.reset()
 
     # ------------------------------------------------------------------
     def reset(self) -> None:
         """Clear all state for a new audio stream (call once per file)."""
-        self.model.reset_states()
+        self.model.reset()
         self._tail = torch.zeros(0)  # leftover samples (< one frame)
         self._frame_idx = 0  # index of the next frame to be scored
         self._triggered = False  # inside a (possibly unconfirmed) speech run
@@ -118,9 +156,7 @@ class StreamingVAD:
         x = torch.cat([self._tail, x])
         n_frames = x.shape[0] // self.frame
         out: list[tuple[int, int]] = []
-        for f in range(n_frames):
-            frame = x[f * self.frame : (f + 1) * self.frame]
-            prob = float(self.model(frame, self.sr).item())
+        for prob in self._score(x[: n_frames * self.frame]):
             out.extend(self._step(prob))
         self._tail = x[n_frames * self.frame :]
         return out
@@ -175,11 +211,9 @@ class StreamingVAD:
         context.
         """
         f_end = end_sample // self.frame
+        start = self._frame_idx * self.frame - self._buf_start
         out: list[tuple[int, int]] = []
-        for f in range(self._frame_idx, f_end):
-            offset = f * self.frame - self._buf_start
-            frame = self._buf[offset : offset + self.frame]
-            prob = float(self.model(frame, self.sr).item())
+        for prob in self._score(self._buf[start : f_end * self.frame - self._buf_start]):
             out.extend(self._step(prob))
 
         # Consumed samples are never needed again.
@@ -188,6 +222,13 @@ class StreamingVAD:
             self._buf = self._buf[drop:]
             self._buf_start += drop
         return out
+
+    def _score(self, samples: torch.Tensor) -> list[float]:
+        """Speech probabilities of the whole frames of ``samples``, scored as one batch."""
+        n_frames = samples.shape[0] // self.frame
+        if n_frames <= 0:
+            return []
+        return self.model(samples[: n_frames * self.frame].reshape(n_frames, self.frame)).tolist()
 
     # ------------------------------------------------------------------
     def _step(self, prob: float) -> list[tuple[int, int]]:

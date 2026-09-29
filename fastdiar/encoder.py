@@ -141,13 +141,21 @@ class StreamingReDimNet2(nn.Module):
         return x.unsqueeze(1).to(dtype)
 
 
-def load_streaming_model(model: str = "large", device="cpu") -> StreamingReDimNet2:
+def load_streaming_model(
+    model: str = "large", device="cpu", dtype: torch.dtype | None = None
+) -> StreamingReDimNet2:
     """A streaming model: a released one by size, or a local checkpoint file.
 
     A size in :data:`CHECKPOINTS` is downloaded from the GitHub release to the
     torch hub cache on first use (and checked against the hash in its name). A
     checkpoint holds the model's config (``model_config``) and weights
     (``state_dict``).
+
+    ``dtype`` is the precision of the backbone and the projection head
+    (default: bf16 on a GPU, fp32 on the CPU); the log-mel front-end always
+    runs in fp32. Not fp16: the LayerNorm statistics overflow it, and PyTorch
+    sends fp16 depthwise convolutions to cuDNN, which spends ~0.3 s setting each
+    one up for every new input length.
     """
     if model in CHECKPOINTS:
         checkpoint = torch.hub.load_state_dict_from_url(
@@ -160,18 +168,23 @@ def load_streaming_model(model: str = "large", device="cpu") -> StreamingReDimNe
         checkpoint = torch.load(model, map_location="cpu", weights_only=True)
     net = StreamingReDimNet2(**checkpoint["model_config"])
     net.load_state_dict(checkpoint["state_dict"])
-    return net.to(device).eval()
+    net = net.to(device).eval()
+    if dtype is None:
+        dtype = torch.bfloat16 if torch.device(device).type == "cuda" else torch.float32
+    for module in (net.backbone, net.bn, net.linear):
+        module.to(dtype)
+    return net
 
 
 @dataclass
 class StreamingState:
     """Holds all mutable state for streaming inference."""
 
-    # Audio preprocessing
+    # Audio preprocessing (the running sums stay on the model's device)
     audio_buffer: torch.Tensor | None = None
     preemph_last: torch.Tensor | None = None
-    audio_sum: float = 0.0
-    audio_sumsq: float = 0.0
+    audio_sum: torch.Tensor | float = 0.0
+    audio_sumsq: torch.Tensor | float = 0.0
     audio_count: int = 0
 
     # Spectrogram causal mean subtraction
@@ -230,6 +243,11 @@ class StreamingInference:
         """Device of the model parameters."""
         return next(self.model.parameters()).device
 
+    @property
+    def dtype(self):
+        """Compute precision of the backbone and the head (the front-end is fp32)."""
+        return next(self.backbone.parameters()).dtype
+
     def reset(self):
         """Reset all streaming state. Call before processing a new utterance."""
         self.state = StreamingState()
@@ -252,8 +270,8 @@ class StreamingInference:
         if audio_chunk is None:
             return None
 
-        # 1. Compute spectrogram frames -> (1, 1, n_mels, T_new)
-        spec = self._compute_spec_streaming(audio_chunk).unsqueeze(1)
+        # 1. Compute spectrogram frames (fp32) -> (1, 1, n_mels, T_new)
+        spec = self._compute_spec_streaming(audio_chunk).unsqueeze(1).to(self.dtype)
 
         # 2. Run backbone streaming + projection head
         backbone_out = self._backbone_streaming(spec)
@@ -283,7 +301,7 @@ class StreamingInference:
         bs, C, Fr, T = backbone_out.size()
         backbone_out = backbone_out.reshape(bs, C * Fr, T)
         embeddings = self.linear(self.bn(backbone_out).transpose(1, 2))
-        return F.normalize(embeddings, p=2, dim=-1)
+        return F.normalize(embeddings.float(), p=2, dim=-1)
 
     # ------------------------------------------------------------------
     #                    Spectrogram Streaming
@@ -343,9 +361,9 @@ class StreamingInference:
         vars_ = (global_cumsumsq / counts - means * means).clamp(min=1e-12)
         stds = torch.sqrt(vars_)
 
-        # Update state with final values
-        self.state.audio_sum = global_cumsum[..., -1:].item()
-        self.state.audio_sumsq = global_cumsumsq[..., -1:].item()
+        # Update state with final values (tensors: no device sync)
+        self.state.audio_sum = global_cumsum[..., -1:]
+        self.state.audio_sumsq = global_cumsumsq[..., -1:]
         self.state.audio_count += N
 
         return (x - means) / (stds + self._norm_eps)
@@ -545,6 +563,18 @@ class StreamingInference:
         return block.relu(out)
 
 
+def default_shift_sec(model: StreamingReDimNet2) -> float:
+    """The fastest streaming step, in seconds, for ``model``'s device.
+
+    The step only sets how often embeddings are produced, not their value. On
+    a GPU a 320 ms step leaves it mostly idle, waiting for kernel launches,
+    while 60 s blocks keep it busy (over 20x faster; longer blocks gain
+    nothing and take more memory: 1.2 GB for 60 s in bf16). On the CPU long
+    blocks are slower (they do not fit in cache), so the step stays 320 ms.
+    """
+    return 60.0 if next(model.parameters()).device.type == "cuda" else 0.32
+
+
 class StreamingEncoder:
     """Incremental per-frame speaker-embedding extractor.
 
@@ -575,8 +605,8 @@ class StreamingEncoder:
             speech: 1-D float tensor of speech samples (silence removed).
 
         Returns:
-            List of ``(embed_dim,)`` L2-normalized embeddings, one per new
-            frame, in order.
+            List of ``(embed_dim,)`` L2-normalized embeddings (on the CPU), one
+            per new frame, in order.
         """
         self._buf = torch.cat([self._buf, speech.reshape(-1).float()])
         n_blocks = self._buf.shape[0] // self.block
@@ -599,4 +629,4 @@ class StreamingEncoder:
         embs = self.engine.process_chunk(block.unsqueeze(0))
         if embs is None:
             return []
-        return list(embs[0])
+        return list(embs[0].cpu())  # one device-to-host copy per block

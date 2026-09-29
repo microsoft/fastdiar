@@ -11,7 +11,7 @@ Every entrypoint also takes a local checkpoint, e.g. with a local clone:
     )
 """
 
-dependencies = ["torch", "numpy", "scipy", "silero_vad", "onnxruntime"]
+dependencies = ["torch", "numpy", "scipy", "silero_vad"]
 
 from fastdiar.diarizer import StreamingDiarizer  # noqa: E402
 from fastdiar.encoder import StreamingReDimNet2, load_streaming_model  # noqa: E402

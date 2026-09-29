@@ -30,9 +30,10 @@ import numpy as np
 import torch
 import torchaudio
 
-from fastdiar.cli import add_model_args, load_audio, load_model
+from fastdiar.cli import add_device_args, add_model_args, load_audio, load_model
 from fastdiar.diarizer import SAMPLE_RATE, StreamingDiarizer
 
+SHIFT_SEC = 0.32  # streaming step, also on a GPU: a live stream's output cadence
 WINDOW_SEC = 20.0
 COL_SAMPLES = 320  # 20 ms per waveform column
 N_COLS = round(WINDOW_SEC * SAMPLE_RATE / COL_SAMPLES)
@@ -227,7 +228,7 @@ class Session:
     def __init__(self, model) -> None:
         self.lock = threading.Lock()
         self.token = secrets.token_hex(16)  # names the session in `scroll` requests
-        self.diarizer = StreamingDiarizer(model, on_frame=self._on_frame)
+        self.diarizer = StreamingDiarizer(model, shift_sec=SHIFT_SEC, on_frame=self._on_frame)
         self.frame_cols = self.diarizer.frame_samples // COL_SAMPLES
         self.out_dir = Path(tempfile.mkdtemp(prefix="fastdiar_"))
         self.generation = 0
@@ -551,7 +552,7 @@ def build_demo(model) -> gr.Blocks:
             on_mic,
             mic,
             view,
-            stream_every=0.32,
+            stream_every=SHIFT_SEC,
             time_limit=None,
             concurrency_limit=None,
             show_progress="hidden",
@@ -567,6 +568,7 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     add_model_args(parser)
+    add_device_args(parser)
     parser.add_argument("--host", default="127.0.0.1", help="server address")
     parser.add_argument("--port", type=int, default=7860, help="server port")
     parser.add_argument("--share", action="store_true", help="create a public gradio link")
@@ -575,7 +577,7 @@ def main() -> None:
     model = load_model(args)
     # Warm up the model before serving, so the first stream runs at full speed.
     warmup = np.random.default_rng(0).normal(0, 0.1, 3 * SAMPLE_RATE).astype(np.float32)
-    StreamingDiarizer(model)(warmup)
+    StreamingDiarizer(model, shift_sec=SHIFT_SEC)(warmup)
     build_demo(model).queue().launch(
         server_name=args.host, server_port=args.port, share=args.share, css=CSS
     )

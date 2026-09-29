@@ -27,7 +27,21 @@ pip install -e .
 This installs the `fastdiar` package and three commands: `fastdiar-diarize`, `fastdiar-embed` and
 `fastdiar-demo`.
 
+<details>
+<summary>FFmpeg and GPU setup</summary>
+
 Audio decoding (`torchaudio` via `torchcodec`) needs FFmpeg on the system, e.g. `apt install ffmpeg`.
+
+The encoder runs on a GPU when one is available. The pinned `torch`, `torchaudio` and `torchcodec`
+wheels on PyPI are built for CUDA 13, which needs an NVIDIA driver 580 or newer; with an older
+driver, install the CUDA 12.6 builds of the same versions:
+
+```bash
+pip install torch==2.13.0 torchaudio==2.11.0 torchcodec==0.15.0 \
+    --index-url https://download.pytorch.org/whl/cu126
+```
+
+</details>
 
 ### Checkpoints
 
@@ -50,16 +64,22 @@ for `--ext` files (default `.wav`). Audio is converted to 16 kHz mono on load. W
 output is saved next to each audio file; with `-o DIR` it goes to `DIR`, mirroring the input's
 subdirectories.
 
+The encoder runs on a GPU when one is available, in bfloat16 (`--device cpu` to force the CPU);
+the VAD and the clustering always run on the CPU.
+
 ### Diarization
 
 ```bash
 fastdiar-diarize audio.wav                  # -> audio.rttm
 fastdiar-diarize audio.wav -o out/result.rttm
 fastdiar-diarize data/ --ext .flac -o rttm/ -m small
+fastdiar-diarize data/ -o rttm/ --shift-sec 0.32
 ```
 
-The audio is processed as a stream, in 320 ms steps, and every speaker turn is written in the RTTM
-format of pyannote:
+The audio is processed as a stream, in `--shift-sec` steps, and every speaker turn is written in the
+RTTM format of pyannote. The step only sets how often results are produced, not their value, so by
+default it is the fastest for the device: 60 s on a GPU, which small steps leave mostly idle, and
+320 ms on the CPU, where long blocks are slower:
 
 ```
 SPEAKER audio 1 0.160 6.800 <NA> <NA> spk1 <NA> <NA>
@@ -70,13 +90,13 @@ SPEAKER audio 1 6.960 4.080 <NA> <NA> spk2 <NA> <NA>
 
 ```bash
 fastdiar-embed audio.wav                    # -> audio.npy
-fastdiar-embed audio.wav --stream           # feed the encoder in 320 ms blocks
+fastdiar-embed audio.wav --shift-sec 0.32   # feed the encoder in 320 ms blocks
 fastdiar-embed data/ -o emb/ -m medium
 ```
 
 Each `.npy` file holds a float16 `(n_frames, 192)` matrix of L2-normalized embeddings, one per 80 ms
-frame. By default the whole file goes through the causal encoder in one pass; `--stream` feeds it in
-`--shift-sec` blocks, as the diarizer does, with the same result up to rounding.
+frame. The file is fed to the causal encoder in `--shift-sec` blocks, as the diarizer does (by
+default 60 s on a GPU and 320 ms on the CPU), with the same result up to rounding.
 
 ### Demo
 
@@ -100,12 +120,12 @@ from fastdiar.cli import load_audio
 from fastdiar.diarizer import StreamingDiarizer
 from fastdiar.encoder import load_streaming_model
 
-model = load_streaming_model("large")  # or a local checkpoint file
-diarizer = StreamingDiarizer(model)
+model = load_streaming_model("large")  # or a local checkpoint file; device="cuda": bfloat16 GPU
+diarizer = StreamingDiarizer(model)  # step: 60 s on a GPU, 0.32 s on the CPU
 
 rttm = diarizer(load_audio("audio.wav"), uri="audio")  # a whole file
 
-diarizer.reset()  # a live stream: 16 kHz chunks of any length
+diarizer = StreamingDiarizer(model, shift_sec=0.32)  # a live stream: 16 kHz chunks of any length
 for chunk in chunks:
     for start, end, speaker in diarizer.push(chunk):
         print(f"{start:.2f}-{end:.2f} spk{speaker}")

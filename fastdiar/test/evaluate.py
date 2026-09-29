@@ -8,6 +8,8 @@ Every file is streamed through :class:`fastdiar.diarizer.StreamingDiarizer` and
 scored with pyannote's ``DiarizationErrorRate`` (collar 0; overlapped speech is
 scored unless ``--skip-overlap`` is given).
 Files are diarized in parallel, one process per CPU by default (``--workers``).
+When a GPU is available (``--device``) the encoder runs on it, and the files are
+diarized one after the other in a single process.
 With ``--output-dir`` the hypothesis of each file is saved there as
 ``<uri>.rttm``, and files that already have one are not diarized again. See
 ``fastdiar/test/README.md`` for how to obtain each dataset.
@@ -27,7 +29,7 @@ from pyannote.database.util import load_rttm
 from pyannote.metrics.diarization import DiarizationErrorRate
 from tqdm import tqdm
 
-from fastdiar.cli import add_model_args, load_audio, load_model
+from fastdiar.cli import add_device_args, add_model_args, load_audio, load_model, resolve_device
 from fastdiar.diarizer import StreamingDiarizer
 from fastdiar.test.datasets import DATASETS
 
@@ -56,10 +58,12 @@ def parse_args() -> argparse.Namespace:
         "-j",
         "--workers",
         type=int,
-        default=os.cpu_count(),
-        help="parallel diarization processes (default: one per CPU); 1 runs in-process",
+        default=None,
+        help="parallel diarization processes on the CPU (default: one per CPU); 1 runs "
+        "in-process, as always on a GPU",
     )
     add_model_args(parser)
+    add_device_args(parser)
     return parser.parse_args()
 
 
@@ -140,6 +144,11 @@ def main() -> None:
         raise SystemExit(f"audio directory not found: {args.audio_dir}")
     if not args.labels.exists():
         raise SystemExit(f"labels not found: {args.labels}")
+    on_gpu = resolve_device(args).startswith("cuda")
+    if on_gpu and args.workers not in (None, 1):
+        raise SystemExit("on a GPU the files are diarized in a single process: drop --workers")
+    if args.workers is None:
+        args.workers = 1 if on_gpu else os.cpu_count()
     if args.workers < 1:
         raise SystemExit(f"--workers must be at least 1, got {args.workers}")
     items = DATASETS[args.dataset](args.audio_dir, args.labels)

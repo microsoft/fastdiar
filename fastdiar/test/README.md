@@ -108,10 +108,12 @@ python -m fastdiar.test.evaluate voxconverse \
   are not diarized again, so an interrupted run resumes where it stopped.
 - `--skip-overlap`: exclude regions where several reference speakers overlap from scoring.
   Without it, overlapped speech is scored.
-- `-j N`: number of parallel processes, each diarizing whole files on one CPU thread (default:
-  one per CPU). `-j 1` runs everything in the main process.
+- `--device D`: `auto` (default: a GPU when available, in bfloat16), `cpu`, `cuda`, ... The VAD
+  and the clustering always run on the CPU.
+- `-j N`: on the CPU, number of parallel processes, each diarizing whole files on one CPU thread
+  (default: one per CPU). `-j 1` runs everything in the main process, as always on a GPU.
 
-Files are diarized on the CPU, with a tqdm progress bar. The script then
+Files are diarized with a tqdm progress bar. The script then
 prints the accumulated DER row of the pyannote report. When a dataset has files with 5 or more
 speakers, it prints three rows: files with at most 4 speakers, files with 5 or more, and all
 files.
@@ -143,10 +145,13 @@ python -m fastdiar.test.eval_vox1 --audio-dir vox1/test/wav --protocol vox1/test
   embedding per frame).
 - `--enroll-model b6`: embed the enrollment side with another model (cross-model scoring).
 - `--cache [-o DIR]`: save and reuse float16 embeddings, next to the audio or under `DIR`.
-- `--shift-sec S`: audio block fed to the streaming encoder (default 0.32).
+- `--shift-sec S`: audio block fed to the streaming encoder (default: 60 on a GPU, 0.32 on the CPU,
+  the fastest on each; the embeddings do not depend on it).
 - `--skip-frames N`: streaming frames left out of scoring at the start of every utterance
   (default 12, i.e. 960 ms).
-- `-j N`: number of parallel embedding processes (default: one per CPU).
+- `--device D`: `auto` (default: a GPU when available, in bfloat16), `cpu`, `cuda`, ...
+- `-j N`: on the CPU, number of parallel embedding processes (default: one per CPU); a GPU runs in
+  a single process.
 
 ## Real-time factor
 

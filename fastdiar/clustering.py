@@ -1,8 +1,44 @@
+import heapq
 from collections.abc import Iterator
 
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
+
+
+class _RunningMedian:
+    """Exact per-dimension median of a growing set of vectors.
+
+    Every dimension keeps its lower half in a max-heap and its upper half in a
+    min-heap, so adding a vector costs O(d log n) instead of a new median over
+    all n vectors (O(d n), which makes a whole stream quadratic). :meth:`value`
+    equals ``np.median(vectors, axis=0)`` exactly.
+    """
+
+    def __init__(self, dim: int, dtype) -> None:
+        self.dtype = dtype
+        self._lower = [[] for _ in range(dim)]  # negated values: max-heaps
+        self._upper = [[] for _ in range(dim)]
+        self.count = 0
+
+    def add(self, vec: np.ndarray) -> None:
+        for x, lower, upper in zip(vec.tolist(), self._lower, self._upper, strict=True):
+            if not lower or x <= -lower[0]:
+                heapq.heappush(lower, -x)
+            else:
+                heapq.heappush(upper, x)
+            if len(lower) > len(upper) + 1:
+                heapq.heappush(upper, -heapq.heappop(lower))
+            elif len(upper) > len(lower):
+                heapq.heappush(lower, -heapq.heappop(upper))
+        self.count += 1
+
+    def value(self) -> np.ndarray:
+        lower = np.array([-heap[0] for heap in self._lower], dtype=self.dtype)
+        if self.count % 2:
+            return lower
+        upper = np.array([heap[0] for heap in self._upper], dtype=self.dtype)
+        return np.mean(np.stack([lower, upper]), axis=0)  # np.median's arithmetic
 
 
 class OnlineClustering:
@@ -58,7 +94,7 @@ class OnlineClustering:
         self.unprocessed = []
         self.next_frame = 0  # next frame id to emit
         self._buffer = None  # growing backing store of `embeddings`
-        self._median_cache = {}  # cluster id -> (n_frames, unit median)
+        self._median_cache = {}  # cluster id -> [running median of its anchors, unit median]
 
     def process_file(self, embs, vad_labels):
         starts = np.arange(0, len(embs) * self.sec_per_frame, self.sec_per_frame)
@@ -343,10 +379,16 @@ class OnlineClustering:
             if idx is None:  # merged into another cluster
                 continue
             cached = self._median_cache.get(c)
-            if cached is None or cached[0] != len(idx):
-                median = np.median(self.embeddings[idx], axis=0)
-                cached = (len(idx), median / np.linalg.norm(median))
-                self._median_cache[c] = cached
+            if cached is None:
+                running = _RunningMedian(self.embeddings.shape[1], self.embeddings.dtype)
+                cached = self._median_cache[c] = [running, None]
+            running = cached[0]
+            if running.count != len(idx):
+                # anchor lists only grow at the end (a merge extends them too)
+                for i in idx[running.count :]:
+                    running.add(self.embeddings[i])
+                median = running.value()
+                cached[1] = median / np.linalg.norm(median)
             ids.append(c)
             medians.append(cached[1])
         return ids, np.stack(medians) if medians else None
