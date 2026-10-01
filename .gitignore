@@ -435,3 +435,11 @@ FodyWeavers.xsd
 
 # MacOS files
 .DS_Store
+
+# Jekyll local preview (GitHub Pages)
+_site/
+.jekyll-cache/
+.jekyll-metadata
+.bundle/
+vendor/
+Gemfile.lock
