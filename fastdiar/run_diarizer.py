@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Run streaming speaker diarization on audio files and write RTTM.
 
 Usage:

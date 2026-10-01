@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Lightning module and callback for distilling a streaming ReDimNet2 from a frozen b6.
 
 The frozen teacher (the released b6, from torch hub) embeds every speaker's

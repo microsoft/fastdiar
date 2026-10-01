@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Evaluation dataset loaders.
 
 Every loader takes the dataset's audio directory and labels path and returns a

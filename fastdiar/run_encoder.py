@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Extract per-frame speaker embeddings from audio files and save them as fp16 ``.npy``.
 
 Usage:

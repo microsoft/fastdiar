@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """torch.hub entrypoints of the streaming models and the diarizer.
 
     model = torch.hub.load("microsoft/fastdiar", "large")

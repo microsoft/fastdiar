@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Training data for distillation: a weighted mix of VoxCeleb2 and LibriHeavyMix.
 
 Every item is a fixed-length example with the same schema (see

@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Streaming inference for the causal ReDimNet2 models (:data:`CHECKPOINTS`).
 
 Processes audio incrementally in short chunks, caching intermediate states

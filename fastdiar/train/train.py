@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Distillation training of a streaming ReDimNet2 (see ``configs/train.yaml``).
 
 Usage:

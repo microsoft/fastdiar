@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """VoxCeleb1 speaker verification (EER) of the ReDimNet2 models.
 
 Usage:

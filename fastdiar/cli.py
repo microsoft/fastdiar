@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Shared command-line helpers of the ``run_*`` scripts: arguments, audio and output paths."""
 
 import argparse

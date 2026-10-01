@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Gradio demo of the streaming speaker diarizer.
 
 Usage:

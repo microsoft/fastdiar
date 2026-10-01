@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Measure the real-time factor (RTF) of the streaming diarizer.
 
 Usage:

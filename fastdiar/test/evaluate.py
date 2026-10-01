@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Evaluate the streaming diarizer on a diarization benchmark and print its DER.
 
 Usage:

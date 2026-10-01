@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """End-to-end streaming speaker diarization.
 
 Chains the three causal stages over the audio stream::

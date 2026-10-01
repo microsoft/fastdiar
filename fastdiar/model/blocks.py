@@ -1,3 +1,12 @@
+# MIT License
+#
+# Copyright (c) 2026 Palabra.ai
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction. The Software is provided "AS IS", without
+# warranty of any kind. See the original ReDimNet2 repository for the full text.
+
 """ReDimNet building blocks: 2-D conv block and 1-D time-context block."""
 
 import torch.nn as nn

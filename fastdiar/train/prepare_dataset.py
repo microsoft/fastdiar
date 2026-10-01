@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Prepare the training protocols of ``configs/train.yaml``: VAD and filtering.
 
 Usage:

@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Causal streaming voice-activity detection.
 
 silero-VAD scores fixed 32 ms frames; a causal hysteresis state machine then
