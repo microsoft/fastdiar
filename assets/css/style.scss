@@ -1,0 +1,154 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+header, footer {
+  display: none !important;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.wrapper, section {
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ---- page ---- */
+
+.page {
+  font-size: 16px;
+}
+
+.page h1,
+.page h2 {
+  text-align: center;
+}
+
+.page h2 {
+  margin: 3rem 0 1rem;
+}
+
+.page h3 {
+  margin: 2rem 0 0.5rem;
+}
+
+.page-head {
+  text-align: center;
+}
+
+.badges img {
+  margin: 0 2px;
+}
+
+.authors {
+  margin: 1rem auto 2rem;
+}
+
+.authors .names a,
+.authors .names span {
+  margin: 0 0.4rem;
+}
+
+.authors .affiliation {
+  font-weight: bold;
+}
+
+.authors .note {
+  font-size: 14px;
+}
+
+/* ---- figures ---- */
+
+figure {
+  margin: 1.5rem 0 2rem;
+}
+
+figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+figcaption {
+  margin-top: 0.5rem;
+  font-size: 14px;
+  color: #727272;
+}
+
+/* ---- results table ---- */
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1rem 0 0.5rem;
+}
+
+table.results {
+  width: auto;
+  margin: 0 auto;
+  border-collapse: collapse;
+  border-top: 2px solid #222;
+  border-bottom: 2px solid #222;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  th, td {
+    padding: 4px 5px;
+    text-align: center;
+    border: 0;
+  }
+
+  th {
+    color: #222;
+  }
+
+  th.model, td.model {
+    text-align: left;
+  }
+
+  /* first column of each dataset: wider gap to the previous one */
+  .g {
+    padding-left: 12px;
+  }
+
+  thead tr:first-child th.dataset {
+    border-bottom: 1px solid #bbb;
+  }
+
+  thead tr:last-child th {
+    font-weight: normal;
+  }
+
+  thead {
+    border-bottom: 1px solid #222;
+  }
+
+  tr.ours td {
+    background: rgba(38, 124, 185, 0.08);
+  }
+
+  strong {
+    color: #222;
+  }
+}
+
+/* ---- citation ---- */
+
+pre.bibtex {
+  background: #f7f7f7;
+  padding: 1em;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre;
+  overflow-x: auto;
+  text-align: left;
+}
