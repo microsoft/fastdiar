@@ -1,7 +1,7 @@
 # Training
 
 Distills the streaming encoder (`configs/large.json`) from the frozen, whole-utterance
-[ReDimNet2 b6](https://github.com/PalabraAI/redimnet2) model: every per-frame embedding of the
+ReDimNet2-B6 model: every per-frame embedding of the
 student is trained to match the teacher's embedding of the speaker active in that frame. The
 training data is a weighted mix of VoxCeleb2 (single speakers and two-speaker mixtures built on the
 fly, with reverb and noise) and LibriHeavyMix (pre-rendered meetings of 2–3 speakers). The student's
@@ -14,26 +14,17 @@ holds all the datasets; it is passed to the training script as `--data-root`.
 
 | Dataset | Used for | Where it goes under `$DATA` |
 | --- | --- | --- |
-| [VoxCeleb2](https://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox2.html) dev | training | `voxceleb/vox2/dev/aac/<speaker>/<video>/<utt>.m4a` |
-| [LibriHeavyMix-medium](https://huggingface.co/datasets/zrjin/LibriheavyMix-medium) | training | `LibriheavyMix/` (see below) |
-| [MUSAN](https://openslr.org/17) | noise augmentation | `musan/{noise,music,speech}/` |
-| [RIRS_NOISES](https://openslr.org/28) | reverb augmentation | `RIRS_NOISES/simulated_rirs/` |
-| [VoxCeleb1](https://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html) test | validation (EER) | `voxceleb/vox1/wav/` and `voxceleb/vox1/veri_test2.txt` |
+| VoxCeleb2 (dev) | training | `voxceleb/vox2/dev/aac/<speaker>/<video>/<utt>.m4a` |
+| LibriHeavyMix (medium) | training | `LibriheavyMix/` (see below) |
+| MUSAN (OpenSLR 17) | noise augmentation | `musan/{noise,music,speech}/` |
+| RIRS_NOISES (OpenSLR 28) | reverb augmentation | `RIRS_NOISES/simulated_rirs/` |
+| VoxCeleb1 (test) | validation (EER) | `voxceleb/vox1/wav/` and `voxceleb/vox1/veri_test2.txt` |
 
-For VoxCeleb1 you only need the test set and the
-cleaned trial list
-[`veri_test2.txt`](https://www.robots.ox.ac.uk/~vgg/data/voxceleb/meta/veri_test2.txt).
+For VoxCeleb1 you only need the test set and the cleaned trial list `veri_test2.txt`.
 
 LibriHeavyMix is split into `audio.tar.gz*` (the mixtures) and `src.tar.gz*` (every speaker's clean
 source), about 560 GB in all, and as much again once extracted. Download it and extract both
 archives inside `$DATA/LibriheavyMix`:
-
-```bash
-hf download zrjin/LibriheavyMix-medium --repo-type dataset --local-dir $DATA/LibriheavyMix
-cd $DATA/LibriheavyMix
-cat audio.tar.gz?? | tar xz   # -> audio/medium_mtt/<id>.flac
-cat src.tar.gz?? | tar xz     # -> src/medium_mtt/<id>/<i>.flac
-```
 
 The training protocol is `medium-mtt-lhotse/lsheavymix_cuts_medium.jsonl.gz`. The archives also
 hold another subset (`medium`, protocol in `medium-lhotse/`), which is not used.

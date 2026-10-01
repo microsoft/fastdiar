@@ -39,8 +39,8 @@ datasets:
     normalize_mixture: true
     lowpass_prob: 0.0  # probability of dropping everything above 4 kHz
     augment:
-      musan_dir: musan  # https://openslr.org/17
-      rirs_dir: RIRS_NOISES/simulated_rirs  # https://openslr.org/28
+      musan_dir: musan
+      rirs_dir: RIRS_NOISES/simulated_rirs
       aug_prob: 0.6
 
   # Pre-rendered meeting mixtures, no augmentation.

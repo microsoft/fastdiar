@@ -15,12 +15,6 @@ Each dataset is passed to the script as an audio directory (`--audio-dir`) and a
 
 ### AMI (IHM-MIX): `ami`
 
-- Audio: [FluidInference/ami-corpus-mirror](https://huggingface.co/datasets/FluidInference/ami-corpus-mirror),
-```
-hf download FluidInference/ami-corpus-mirror --repo-type dataset --local-dir ami-corpus-mirror
-```
-- Labels: `git clone https://github.com/pyannote/AMI-diarization-setup`
-
 The 16 meetings of the official AMI test split (9.1 h, 3–4 speakers each). The audio is the
 `Mix-Headset` sum of the close-talking microphones (IHM-MIX), so results are not comparable to
 distant-microphone (SDM) numbers. The labels are the manual `only_words` annotations.
@@ -31,9 +25,7 @@ distant-microphone (SDM) numbers. The labels are the manual `only_words` annotat
 
 ### DIHARD III: `dihard`
 
-- [DIHARD III](https://dihardchallenge.github.io/dihard3/), licensed from the LDC: evaluation set LDC2022S14.
-
-Recordings from 11 domains, including clinical interviews, courtroom, restaurant, meetings and
+Evaluation set LDC2022S14. Recordings from 11 domains, including clinical interviews, courtroom, restaurant, meetings and
 web video. Scoring whole files with collar 0 matches the DIHARD III "full" protocol.
 
 ```
@@ -41,9 +33,6 @@ web video. Scoring whole files with collar 0 matches the DIHARD III "full" proto
 ```
 
 ### MSDWild: `msdwild`
-
-- [X-LANCE/MSDWILD](https://github.com/X-LANCE/MSDWILD): download the audio archive linked in
-  the README; the labels are the RTTM files in the repository's `rttms/` directory.
 
 In-the-wild video clips. The `few` validation protocol has 490 clips (9.9 h, 2–4 speakers);
 pass `many.val.rttm` instead for the crowded-scene protocol.
@@ -53,9 +42,6 @@ pass `many.val.rttm` instead for the crowded-scene protocol.
 ```
 
 ### NOTSOFAR-1: `notsofar`
-
-- [microsoft/NOTSOFAR1-Challenge](https://github.com/microsoft/NOTSOFAR1-Challenge): download a
-  meeting subset with the download script described in the repository README.
 
 Real meetings recorded by several far-field devices at once. Each single-channel device
 (`MTG_*/sc_*/ch0.wav`) is scored as a separate file against the meeting's word-level
@@ -68,10 +54,7 @@ example, 129 meetings give 819 recordings (84 h, 3–7 speakers).
 
 ### MagicData-RAMC: `ramc`
 
-- [OpenSLR 123](https://www.openslr.org/123/): download and extract the corpus, which contains
-  `MDT2021S003/` (`WAV/`, `TXT/`) and `DataPartition/`.
-
-Mandarin two-party conversations. The labels are the split's partition file (the test split
+OpenSLR 123. Mandarin two-party conversations. The labels are the split's partition file (the test split
 has 43 conversations, 20.6 h); the references are read from the `TXT/` directory next to
 `WAV/`.
 
@@ -80,10 +63,6 @@ has 43 conversations, 20.6 h); the references are read from the `TXT/` directory
 ```
 
 ### VoxConverse: `voxconverse`
-
-- [joonson/voxconverse](https://github.com/joonson/voxconverse): clone it for the labels
-  (`dev/` and `test/` RTTM directories) and download the dev and test audio archives linked in
-  the README.
 
 Multi-speaker clips from YouTube debates, news and talk shows. The test set has 232 files
 (43.5 h, 1–21 speakers).
@@ -132,8 +111,7 @@ an AMD Threadripper PRO 5995WX CPU.
 
 ## Speaker verification (VoxCeleb1)
 
-`eval_vox1.py` needs the [VoxCeleb1](https://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html)
-test set audio (`--audio-dir`: the `wav/` directory the trial paths are relative to) and the
+`eval_vox1.py` needs the VoxCeleb1 test set audio (`--audio-dir`: the `wav/` directory the trial paths are relative to) and the
 cleaned trial list `veri_test2.txt` (`--protocol`).
 
 ```bash
@@ -155,10 +133,10 @@ python -m fastdiar.test.eval_vox1 --audio-dir vox1/test/wav --protocol vox1/test
 
 ## Real-time factor
 
-`measure_rtf.py` diarizes the first 5 files of the [VoxConverse dev](https://github.com/joonson/voxconverse) set, each cut to its first
+`measure_rtf.py` diarizes the first 5 files of the VoxConverse dev set, each cut to its first
 minute, on a single CPU thread, and prints the real-time factor (processing time / audio duration)
 of every file and of all of them:
 
 ```bash
-python -m fastdiar.measure_rtf voxconverse/wav/dev -m small
+python -m fastdiar.measure_rtf voxconverse/wav/dev
 ```

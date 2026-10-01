@@ -394,9 +394,9 @@ def collate_fn(items: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
 # Reverb / additive-noise augmentation, adapted from wespeaker's
 # `add_reverb_noise` (wespeaker/dataset/processor.py), with RIRs and noises read
 # from directories instead of LMDB shards:
-#   * MUSAN (additive noise, https://www.openslr.org/17/), with `noise/`,
+#   * MUSAN (additive noise, OpenSLR 17), with `noise/`,
 #     `speech/` and `music/` sub-trees that select the SNR range;
-#   * RIRS_NOISES (reverberation, https://www.openslr.org/28/), any tree of RIR
+#   * RIRS_NOISES (reverberation, OpenSLR 28), any tree of RIR
 #     wav files (e.g. `simulated_rirs/`).
 # ---------------------------------------------------------------------------
 
