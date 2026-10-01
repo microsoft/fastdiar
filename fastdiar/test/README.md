@@ -6,7 +6,7 @@ unless `--skip-overlap` is given).
 
 `eval_vox1.py` measures the speaker-verification EER of the
 models on VoxCeleb1 (see [Speaker verification](#speaker-verification-voxceleb1)), and
-`measure_rtf.py` the diarizer's real-time factor (see [Real-time factor](#real-time-factor)).
+`measure_rtf.py` measures the diarizer's real-time factor (see [Real-time factor](#real-time-factor)).
 
 ## Datasets
 

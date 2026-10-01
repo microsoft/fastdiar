@@ -66,7 +66,7 @@ class OnlineClustering:
         self,
         delay_frames: int = 10,
         clust_th: float = 0.4,
-        sub_clust_th: float = 0.8,
+        merge_th: float = 0.8,
         confidence: float = 0.8,
         sec_per_frame: float = 0.08,
         min_speech_sec: float = 2.0,
@@ -76,7 +76,7 @@ class OnlineClustering:
     ):
         self.delay_frames = delay_frames
         self.clust_th = clust_th
-        self.sub_clust_th = sub_clust_th
+        self.merge_th = merge_th
         self.confidence = confidence
         self.sec_per_frame = sec_per_frame
         self.min_speech_sec = min_speech_sec
@@ -329,7 +329,7 @@ class OnlineClustering:
                 self._median_cache.pop(lbl, None)
 
     def _similar_speech_groups(self):
-        """Group non-empty speech clusters whose medians exceed ``sub_clust_th``.
+        """Group non-empty speech clusters whose medians exceed ``merge_th``.
 
         Returns ``{component id: [cluster ids]}``, or ``{}`` when no pair is
         similar enough to merge.
@@ -347,7 +347,7 @@ class OnlineClustering:
         speech_medians /= np.linalg.norm(speech_medians, axis=1, keepdims=True)
         sims = speech_medians @ speech_medians.T
 
-        rows, cols = np.where(np.tril(sims, k=-1) > self.sub_clust_th)
+        rows, cols = np.where(np.tril(sims, k=-1) > self.merge_th)
         if len(rows) == 0:
             return {}
 

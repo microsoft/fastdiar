@@ -3,9 +3,9 @@
 Chains the three causal stages over the audio stream::
 
     audio chunk (shift_sec)
-      -> StreamingVAD             -> speech/silence mask of every encoder frame
-      -> StreamingEncoder         -> one embedding per 80 ms frame (silence included)
-      -> OnlineClustering         -> per-frame speaker id, ``max_delay_sec`` behind
+      -> StreamingVAD            -> speech/silence mask of every encoder frame
+      -> StreamingEncoder        -> one embedding per 80 ms frame (silence included)
+      -> OnlineClustering        -> per-frame speaker id, ``max_delay_sec`` behind
       -> contiguous-label merge  -> RTTM lines of finalized speaker turns
 
 Both stages see the same audio at every step: the encoder is fed the raw stream
@@ -45,7 +45,7 @@ class StreamingDiarizer:
             on a GPU.
         delay_frames: ``OnlineClustering`` confidence look-back in frames.
         clust_th: Cluster assignment similarity threshold.
-        sub_clust_th: Speech-cluster merging similarity threshold.
+        merge_th: Speech-cluster merging similarity threshold.
         confidence: Look-back similarity required to assign a frame.
         online_merge: Enable streaming speech-cluster merging.
         post_process: Offline speech-cluster merging. The whole stream is
@@ -73,7 +73,7 @@ class StreamingDiarizer:
         shift_sec: float | None = None,
         delay_frames: int = 10,
         clust_th: float = 0.4,
-        sub_clust_th: float = 0.8,
+        merge_th: float = 0.8,
         confidence: float = 0.8,
         online_merge: bool = True,
         post_process: bool = False,
@@ -96,7 +96,7 @@ class StreamingDiarizer:
         self._online_kwargs = {
             "delay_frames": delay_frames,
             "clust_th": clust_th,
-            "sub_clust_th": sub_clust_th,
+            "merge_th": merge_th,
             "confidence": confidence,
             "sec_per_frame": self.frame_shift,
             "online_merge": online_merge,
