@@ -1,0 +1,16 @@
+torch==2.13.0
+torchaudio==2.11.0
+torchcodec==0.15.0
+numpy==2.2.6
+scipy==1.15.1
+silero-vad==6.2.1
+tqdm==4.67.1
+gradio==6.28.0
+pandas==2.2.3
+pyannote.core==6.0.1
+pyannote.database==6.1.1
+pyannote.metrics==4.1
+lightning==2.4.0
+pyarrow==24.0.0
+PyYAML==6.0.2
+tensorboard==2.21.0

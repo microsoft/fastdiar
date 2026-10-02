@@ -1,0 +1,77 @@
+# Distillation of the streaming `large` model from the frozen b6 teacher, on a
+# weighted mix of VoxCeleb2 and LibriHeavyMix (see fastdiar/train).
+#
+#   python -m fastdiar.train.train --config configs/train.yaml --data-root /data
+#
+# Dataset paths are relative to --data-root; log_dir is relative to the working
+# directory.
+
+seed: 42
+log_dir: exp/distill_large
+
+student_config: configs/large.json
+# Released b6 checkpoint, downloaded to the torch hub cache. The student starts
+# from its weights where the shapes allow (or from a local checkpoint path, or
+# at random with null).
+teacher_ckpt: https://github.com/PalabraAI/redimnet2/releases/download/v1.0.0/b6-vb2+vox2_v0-lm.pt
+student_ckpt: https://github.com/PalabraAI/redimnet2/releases/download/v1.0.0/b6-vb2+vox2_v0-lm.pt
+
+# Shared by both datasets, so their examples collate into one batch.
+target_duration: 8.0  # seconds per example
+sample_rate: 16000
+max_speakers: 3  # teacher speaker slots per example
+
+datasets:
+  # Single-speaker utterances, and two-speaker mixtures built on the fly
+  # (overlap + change, or two changes), with reverb/noise on the student input.
+  voxceleb:
+    weight: 0.75
+    parquet_path: voxceleb/vox2/train_meta_vad.parquet  # path, spk_id, speech_segments
+    audio_dir: voxceleb/vox2/dev/aac
+    use_vad: true
+    multispeaker_prob: 0.75
+    overlap_min_ms: 150
+    overlap_max_ms: 4000
+    overlap_log_mu: -0.39  # lognormal overlap duration, fitted to VoxConverse dev
+    overlap_log_sigma: 0.96
+    sir_min_db: -5.0  # level of the second speaker
+    sir_max_db: 5.0
+    normalize_mixture: true
+    lowpass_prob: 0.0  # probability of dropping everything above 4 kHz
+    augment:
+      musan_dir: musan
+      rirs_dir: RIRS_NOISES/simulated_rirs
+      aug_prob: 0.6
+
+  # Pre-rendered meeting mixtures, no augmentation.
+  libriheavymix:
+    weight: 0.25
+    parquet_path: LibriheavyMix/train_vad_protocol.parquet
+    mixture_dir: LibriheavyMix/audio/medium_mtt
+    source_dir: LibriheavyMix/src/medium_mtt
+    lowpass_prob: 0.0
+
+batch_size: 20  # per GPU
+num_batches_per_epoch: 2000  # per GPU
+num_workers: 16
+pin_memory: true
+
+# AdamW with a linear warmup from initial_lr to lr, then a linear decay back.
+lr: 0.001
+initial_lr: 0.00001
+weight_decay: 0.01
+max_epochs: 100
+warmup_epochs: 1
+gradient_clip_val: 0.5
+
+accelerator: gpu
+devices: [1]  # GPU indices, or a count; several GPUs train with DDP
+precision: bf16-mixed
+log_every_n_steps: 50
+save_weights_only: true
+
+# VoxCeleb1-test EER of the student after every epoch (logged as vox1_eer).
+vox1_eval:
+  protocol: voxceleb/vox1/veri_test2.txt
+  wav_dir: voxceleb/vox1/wav
+  skip_frames: 12  # the first 960 ms of every utterance are not scored
