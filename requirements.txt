@@ -10,7 +10,7 @@ pandas==2.2.3
 pyannote.core==6.0.1
 pyannote.database==6.1.1
 pyannote.metrics==4.1
-lightning==2.4.0
+lightning==2.6.6
 pyarrow==24.0.0
 PyYAML==6.0.2
 tensorboard==2.21.0
