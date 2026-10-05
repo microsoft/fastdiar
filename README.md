@@ -6,6 +6,8 @@
 
 FASTDIAR is a streaming diarization architecture with a confidence-gated online clustering at a fixed 960 ms delay, which is the most accurate streaming diarizer on low-overlap benchmarks, degrades far less than cache-based systems beyond four speakers, and needs no diarization corpus in training.
 
+For more details check our [paper](https://arxiv.org/pdf/2610.02941) and [project page](https://microsoft.github.io/fastdiar).
+
 This repository provides:
 - **Pre-trained checkpoints** of the streaming encoder in three configurations;
 - **Inference code**: streaming diarization to RTTM, per-frame speaker embeddings, and a live demo;
@@ -175,3 +177,14 @@ trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
+
+## Citation
+If you use code or pretrained models, please cite the following paper:
+```
+@article{torgashov2026fastdiar,
+  title={{FASTDIAR}: Frame-Level Speaker Encoder for Streaming Diarization},
+  author={Torgashov, Nikita and K{\"o}p{\"u}kl{\"u}, Okan},
+  journal={arXiv preprint arXiv:2610.02941},
+  year={2026}
+}
+```
