@@ -7,13 +7,15 @@
 
   <h1>FASTDIAR: Frame-Level Speaker Encoder for Streaming Diarization</h1>
 
-  <!-- badges (placeholder links: replace before release) -->
   <p class="badges">
     <a href="https://arxiv.org/pdf/2610.02941" target="_blank" rel="noopener">
       <img src="https://img.shields.io/badge/arXiv-Paper-b31b1b" alt="arXiv paper" />
     </a>
     <a href="https://github.com/microsoft/fastdiar" target="_blank" rel="noopener">
       <img src="https://img.shields.io/badge/GitHub-Code-green" alt="GitHub code" />
+    </a>
+    <a href="https://huggingface.co/spaces/herimor/fastdiar" target="_blank" rel="noopener">
+      <img src="https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Demo-yellow" alt="HuggingFace demo" />
     </a>
   </p>
 
