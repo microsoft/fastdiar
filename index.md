@@ -9,14 +9,11 @@
 
   <!-- badges (placeholder links: replace before release) -->
   <p class="badges">
-    <a href="https://arxiv.org/abs/XXXX.XXXXX" target="_blank" rel="noopener">
+    <a href="https://arxiv.org/pdf/2610.02941" target="_blank" rel="noopener">
       <img src="https://img.shields.io/badge/arXiv-Paper-b31b1b" alt="arXiv paper" />
     </a>
     <a href="https://github.com/microsoft/fastdiar" target="_blank" rel="noopener">
       <img src="https://img.shields.io/badge/GitHub-Code-green" alt="GitHub code" />
-    </a>
-    <a href="https://huggingface.co/spaces/XXXX/fastdiar" target="_blank" rel="noopener">
-      <img src="https://img.shields.io/badge/%F0%9F%A4%97%20HuggingFace-Demo-yellow" alt="HuggingFace demo" />
     </a>
   </p>
 
@@ -139,7 +136,7 @@
 <pre class="bibtex">@article{torgashov2026fastdiar,
   title={{FASTDIAR}: Frame-Level Speaker Encoder for Streaming Diarization},
   author={Torgashov, Nikita and K{\"o}p{\"u}kl{\"u}, Okan},
-  journal={arXiv preprint arXiv:XXXX.XXXXX},
+  journal={arXiv preprint arXiv:2610.02941},
   year={2026}
 }</pre>
 {% endraw %}
